@@ -143,7 +143,7 @@ export async function executeWorkflowCore(
         nodeType: 'aiDecision',
         status: 'completed',
         timestamp: new Date().toLocaleTimeString(),
-        durationMs: durationMs || 45,
+        durationMs,
         prompt: promptText,
         decision,
         reasoning,

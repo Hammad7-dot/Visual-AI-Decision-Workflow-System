@@ -1,297 +1,239 @@
 'use client';
 
 import React, { useState, useCallback } from 'react';
-import { Node, Edge, useNodesState, useEdgesState, addEdge, Connection } from '@xyflow/react';
-import FlowEditor from '@/components/FlowEditor';
-import Sidebar from '@/components/Sidebar';
-import Header from '@/components/Header';
-import NodeDrawer from '@/components/NodeDrawer';
-import ExecutionLogsPanel from '@/components/ExecutionLogsPanel';
-import { WorkflowNode, ExecutionLog } from '@/lib/types';
+import { Edge, useNodesState, useEdgesState } from '@xyflow/react';
+import { FlowEditor } from '@/components/FlowEditor';
+import { WorkflowToolbar } from '@/components/WorkflowToolbar';
+import { NodeDrawer } from '@/components/NodeDrawer';
+import { ExecutionLogsPanel } from '@/components/ExecutionLogsPanel';
+import { PRESET_WORKFLOWS } from '@/lib/presets';
+import {
+  WorkflowNode,
+  WorkflowExecutionState,
+  PresetWorkflow,
+  AIDecisionNodeData,
+  ActionNodeData,
+} from '@/lib/types';
 
-const INITIAL_NODES: Node[] = [
-  {
-    id: 'start-1',
-    type: 'startNode',
-    position: { x: 250, y: 50 },
-    data: {
-      label: 'Start Node',
-      inputPayload: JSON.stringify({ userAge: 25, region: 'US', score: 85 }, null, 2),
-      executionStatus: 'idle',
-    },
-  },
-  {
-    id: 'ai-1',
-    type: 'aiDecisionNode',
-    position: { x: 250, y: 200 },
-    data: {
-      label: 'Age Check',
-      prompt: 'Check if userAge is >= 18. Return YES if user is an adult, otherwise NO.',
-      executionStatus: 'idle',
-    },
-  },
-  {
-    id: 'action-yes',
-    type: 'actionNode',
-    position: { x: 100, y: 380 },
-    data: {
-      label: 'Approve User',
-      actionType: 'approve',
-      executionStatus: 'idle',
-    },
-  },
-  {
-    id: 'action-no',
-    type: 'actionNode',
-    position: { x: 400, y: 380 },
-    data: {
-      label: 'Reject User',
-      actionType: 'reject',
-      executionStatus: 'idle',
-    },
-  },
-];
+const DEFAULT_PRESET = PRESET_WORKFLOWS[0];
 
-const INITIAL_EDGES: Edge[] = [
-  {
-    id: 'e-start-ai',
-    source: 'start-1',
-    target: 'ai-1',
-    animated: false,
-  },
-  {
-    id: 'e-ai-yes',
-    source: 'ai-1',
-    sourceHandle: 'yes',
-    target: 'action-yes',
-    label: 'YES',
-    animated: false,
-  },
-  {
-    id: 'e-ai-no',
-    source: 'ai-1',
-    sourceHandle: 'no',
-    target: 'action-no',
-    label: 'NO',
-    animated: false,
-  },
-];
+const IDLE_EXECUTION_STATE: WorkflowExecutionState = {
+  executionId: null,
+  status: 'idle',
+  activeNodeId: null,
+  activeEdgeId: null,
+  logs: [],
+  visitedNodeIds: [],
+  visitedEdgeIds: [],
+  inputPayload: '',
+};
 
 export default function Home() {
-  const [nodes, setNodes, onNodesChange] = useNodesState(INITIAL_NODES);
-  const [edges, setEdges, onEdgesChange] = useEdgesState(INITIAL_EDGES);
+  const [nodes, setNodes, onNodesChange] = useNodesState<WorkflowNode>(DEFAULT_PRESET.nodes);
+  const [edges, setEdges, onEdgesChange] = useEdgesState<Edge>(DEFAULT_PRESET.edges);
   const [selectedNode, setSelectedNode] = useState<WorkflowNode | null>(null);
-  const [isDrawerOpen, setIsDrawerOpen] = useState(false);
-  const [isExecuting, setIsExecuting] = useState(false);
-  const [logs, setLogs] = useState<ExecutionLog[]>([]);
+  const [inputPayload, setInputPayload] = useState(DEFAULT_PRESET.defaultInput);
+  const [executionState, setExecutionState] = useState<WorkflowExecutionState>(IDLE_EXECUTION_STATE);
 
-  const onConnect = useCallback(
-    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
-    [setEdges]
-  );
+  const isExecuting = executionState.status === 'running';
 
-  const handleNodeClick = useCallback((_: React.MouseEvent, node: Node) => {
-    setSelectedNode(node as WorkflowNode);
-    setIsDrawerOpen(true);
+  const onNodeSelect = useCallback((node: WorkflowNode | null) => {
+    setSelectedNode(node);
   }, []);
 
-  const handleAddNode = (type: string) => {
-    const newNode: Node = {
-      id: `${type}-${Date.now()}`,
-      type,
-      position: { x: 300, y: 150 + nodes.length * 80 },
-      data: {
-        label: type === 'startNode' ? 'Start Node' : type === 'aiDecisionNode' ? 'AI Decision' : 'Action Node',
-        executionStatus: 'idle',
-        ...(type === 'startNode' && { inputPayload: '{}' }),
-        ...(type === 'aiDecisionNode' && { prompt: 'Evaluates workflow state' }),
-        ...(type === 'actionNode' && { actionType: 'custom' }),
-      },
-    };
-    setNodes((nds) => [...nds, newNode]);
-  };
-
-  const handleSaveNodeProperties = (updatedNode: WorkflowNode) => {
-    setNodes((nds) =>
-      nds.map((node) => (node.id === updatedNode.id ? updatedNode : node))
-    );
-    setSelectedNode(updatedNode);
-  };
-
-  const addLog = (log: Omit<ExecutionLog, 'id' | 'timestamp'>) => {
-    const newLog: ExecutionLog = {
-      ...log,
-      id: `log-${Date.now()}-${Math.random()}`,
-      timestamp: new Date().toLocaleTimeString(),
-    };
-    setLogs((prev) => [newLog, ...prev]);
-  };
-
-  const handleReset = () => {
-    setNodes((nds) =>
-      nds.map((node) => ({
-        ...node,
+  const handleAddAIDecisionNode = () => {
+    const id = `aiDecision-${Date.now()}`;
+    setNodes((nds) => [
+      ...nds,
+      {
+        id,
+        type: 'aiDecision',
+        position: { x: 300, y: 150 + nds.length * 80 },
         data: {
-          ...node.data,
-          executionStatus: 'idle',
-          output: undefined,
-          error: undefined,
-          decision: undefined,
-        },
-      }))
-    );
-    setEdges((eds) => eds.map((e) => ({ ...e, animated: false })));
-    setLogs([]);
+          label: 'New AI Decision',
+          prompt: 'Evaluate the input and decide YES or NO.',
+        } as AIDecisionNodeData,
+      },
+    ]);
   };
 
-  const handleRun = async () => {
-    if (isExecuting) return;
-    setIsExecuting(true);
+  const handleAddActionNode = () => {
+    const id = `action-${Date.now()}`;
+    setNodes((nds) => [
+      ...nds,
+      {
+        id,
+        type: 'action',
+        position: { x: 300, y: 150 + nds.length * 80 },
+        data: {
+          label: 'New Action',
+          actionType: 'custom',
+          message: 'Action executed.',
+        } as ActionNodeData,
+      },
+    ]);
+  };
 
-    // Reset status on all nodes & edges
+  const handleUpdateNode = (id: string, updatedData: Record<string, unknown>) => {
     setNodes((nds) =>
-      nds.map((n) => ({
-        ...n,
-        data: { ...n.data, executionStatus: 'idle', output: undefined, error: undefined, decision: undefined },
-      }))
+      nds.map((node) =>
+        node.id === id ? { ...node, data: { ...node.data, ...updatedData } } : node
+      )
     );
-    setEdges((eds) => eds.map((e) => ({ ...e, animated: false })));
+    setSelectedNode((prev) => (prev && prev.id === id ? { ...prev, data: { ...prev.data, ...updatedData } } : prev));
+  };
 
-    addLog({
-      nodeId: 'system',
-      nodeName: 'Workflow Engine',
-      status: 'info',
-      message: 'Dispatching execution request to Inngest and Core Engine...',
+  const handleDeleteNode = (id: string) => {
+    setNodes((nds) => nds.filter((node) => node.id !== id));
+    setEdges((eds) => eds.filter((edge) => edge.source !== id && edge.target !== id));
+    setSelectedNode(null);
+  };
+
+  const handleSelectPreset = (preset: PresetWorkflow) => {
+    setNodes(preset.nodes);
+    setEdges(preset.edges);
+    setInputPayload(preset.defaultInput);
+    setExecutionState(IDLE_EXECUTION_STATE);
+    setSelectedNode(null);
+  };
+
+  const handleExport = () => {
+    const data = JSON.stringify({ nodes, edges, inputPayload }, null, 2);
+    const blob = new Blob([data], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'workflow.json';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
+
+  const handleImport = (jsonData: string) => {
+    try {
+      const parsed = JSON.parse(jsonData);
+      if (parsed.nodes && parsed.edges) {
+        setNodes(parsed.nodes);
+        setEdges(parsed.edges);
+        if (typeof parsed.inputPayload === 'string') setInputPayload(parsed.inputPayload);
+        setExecutionState(IDLE_EXECUTION_STATE);
+        setSelectedNode(null);
+      }
+    } catch (err) {
+      console.error('Failed to import workflow JSON:', err);
+    }
+  };
+
+  const handleClear = () => {
+    setNodes([]);
+    setEdges([]);
+    setExecutionState(IDLE_EXECUTION_STATE);
+    setSelectedNode(null);
+  };
+
+  const handleExecute = async () => {
+    if (isExecuting) return;
+
+    setNodes((nds) =>
+      nds.map((n) => ({ ...n, data: { ...n.data, status: 'idle', lastDecision: undefined, lastReasoning: undefined } }))
+    );
+    setExecutionState({
+      ...IDLE_EXECUTION_STATE,
+      status: 'running',
+      inputPayload,
+      startTime: new Date().toISOString(),
     });
 
     try {
       const response = await fetch('/api/execute', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nodes, edges }),
+        body: JSON.stringify({ nodes, edges, inputPayload }),
       });
 
       const result = await response.json();
 
-      if (!response.ok || !result.success) {
+      if (!response.ok) {
         throw new Error(result.error || 'Execution failed on server');
       }
 
-      const { steps = [] } = result;
+      const { logs = [], visitedEdgeIds = [], activeNodeIds = [] } = result;
 
-      // Animate execution step-by-step
-      for (const step of steps) {
-        const { nodeId, status, decision, output, error, logs: stepLogs } = step;
+      for (const log of logs) {
+        setNodes((nds) =>
+          nds.map((n) => (n.id === log.nodeId ? { ...n, data: { ...n.data, status: 'running' } } : n))
+        );
+        setExecutionState((prev) => ({ ...prev, activeNodeId: log.nodeId, logs: [...prev.logs, log] }));
 
-        // Set node to running
+        await new Promise((resolve) => setTimeout(resolve, 500));
+
         setNodes((nds) =>
           nds.map((n) =>
-            n.id === nodeId
-              ? { ...n, data: { ...n.data, executionStatus: 'running' } }
-              : n
-          )
-        );
-
-        // Highlight connected edges
-        setEdges((eds) =>
-          eds.map((e) =>
-            e.source === nodeId || e.target === nodeId
-              ? { ...e, animated: true }
-              : e
-          )
-        );
-
-        await new Promise((resolve) => setTimeout(resolve, 800));
-
-        // Update node to completed/error
-        setNodes((nds) =>
-          nds.map((n) =>
-            n.id === nodeId
+            n.id === log.nodeId
               ? {
                   ...n,
                   data: {
                     ...n.data,
-                    executionStatus: status === 'COMPLETED' ? 'completed' : 'error',
-                    decision,
-                    output,
-                    error,
-                  },
+                    status: log.status === 'completed' ? 'completed' : 'failed',
+                    lastDecision: log.decision,
+                    lastReasoning: log.reasoning,
+                  } as WorkflowNode['data'],
                 }
               : n
           )
         );
-
-        // Add log entry
-        const targetNode = nodes.find((n) => n.id === nodeId);
-        const nodeName = (targetNode?.data?.label as string) || nodeId;
-
-        if (stepLogs && Array.isArray(stepLogs)) {
-          stepLogs.forEach((msg: string) => {
-            addLog({
-              nodeId,
-              nodeName,
-              status: status === 'COMPLETED' ? 'success' : 'error',
-              message: msg,
-            });
-          });
-        } else {
-          addLog({
-            nodeId,
-            nodeName,
-            status: status === 'COMPLETED' ? 'success' : 'error',
-            message: `Executed step successfully.${decision ? ` Decision: ${decision}` : ''}`,
-          });
-        }
       }
 
-      addLog({
-        nodeId: 'system',
-        nodeName: 'Workflow Engine',
-        status: 'success',
-        message: 'Workflow execution completed successfully.',
-      });
-    } catch (err: any) {
-      addLog({
-        nodeId: 'system',
-        nodeName: 'Workflow Engine',
-        status: 'error',
-        message: `Execution error: ${err.message || err}`,
-      });
-    } finally {
-      setIsExecuting(false);
-      setEdges((eds) => eds.map((e) => ({ ...e, animated: false })));
+      setExecutionState((prev) => ({
+        ...prev,
+        status: 'completed',
+        activeNodeId: null,
+        activeEdgeId: null,
+        visitedNodeIds: activeNodeIds,
+        visitedEdgeIds,
+        endTime: new Date().toISOString(),
+      }));
+    } catch (err: unknown) {
+      const message = err instanceof Error ? err.message : String(err);
+      setExecutionState((prev) => ({ ...prev, status: 'failed', endTime: new Date().toISOString() }));
+      console.error('Execution error:', message);
     }
   };
 
   return (
     <div className="flex h-screen w-screen flex-col overflow-hidden bg-slate-900 text-slate-100">
-      <Header
+      <WorkflowToolbar
+        onExecute={handleExecute}
         isExecuting={isExecuting}
-        onRun={handleRun}
-        onReset={handleReset}
+        onAddAIDecisionNode={handleAddAIDecisionNode}
+        onAddActionNode={handleAddActionNode}
+        onSelectPreset={handleSelectPreset}
+        onExport={handleExport}
+        onImport={handleImport}
+        onClear={handleClear}
+        inputPayload={inputPayload}
+        setInputPayload={setInputPayload}
       />
       <div className="flex flex-1 overflow-hidden">
-        <Sidebar onAddNode={handleAddNode} />
         <main className="relative flex-1">
           <FlowEditor
             nodes={nodes}
             edges={edges}
             onNodesChange={onNodesChange}
             onEdgesChange={onEdgesChange}
-            onConnect={onConnect}
-            onNodeClick={handleNodeClick}
+            setEdges={setEdges}
+            onNodeSelect={onNodeSelect}
+            executionState={executionState}
           />
         </main>
-        <ExecutionLogsPanel
-          logs={logs}
-          onClearLogs={() => setLogs([])}
-        />
+        <div className="w-96 shrink-0">
+          <ExecutionLogsPanel executionState={executionState} onClose={() => setExecutionState(IDLE_EXECUTION_STATE)} />
+        </div>
       </div>
       <NodeDrawer
         node={selectedNode}
-        isOpen={isDrawerOpen}
-        onClose={() => setIsDrawerOpen(false)}
-        onSave={handleSaveNodeProperties}
+        onClose={() => setSelectedNode(null)}
+        onUpdate={handleUpdateNode}
+        onDelete={handleDeleteNode}
       />
     </div>
   );

@@ -66,7 +66,7 @@ export const AIDecisionNode = memo(({ data, selected }: NodeProps) => {
       {/* Card Body / Prompt */}
       <div className="p-3 space-y-2">
         <div className="bg-slate-950/70 p-2.5 rounded-lg border border-slate-800 text-xs text-slate-300 font-mono leading-relaxed min-h-[50px] max-h-[90px] overflow-y-auto">
-          "{nodeData.prompt || 'Define decision question prompt...'}"
+          &quot;{nodeData.prompt || 'Define decision question prompt...'}&quot;
         </div>
 
         {nodeData.lastReasoning && (

@@ -10,7 +10,6 @@ import {
   addEdge,
   Connection,
   Edge,
-  Node,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 

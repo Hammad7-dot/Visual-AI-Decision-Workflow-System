@@ -1,6 +1,6 @@
 import React from 'react';
 import { ExecutionStepLog, WorkflowExecutionState } from '@/lib/types';
-import { Terminal, CheckCircle2, AlertCircle, Clock, ChevronRight, Activity } from 'lucide-react';
+import { Terminal, CheckCircle2, AlertCircle, Clock, Activity } from 'lucide-react';
 
 interface ExecutionLogsPanelProps {
   executionState: WorkflowExecutionState;
@@ -52,7 +52,7 @@ export const ExecutionLogsPanel: React.FC<ExecutionLogsPanelProps> = ({ executio
             <Activity size={24} className="animate-pulse" />
             <p className="text-center text-[11px]">
               No active execution.
-              <br /> Click "Execute Workflow" to trace live steps.
+              <br /> Click &quot;Run Inngest Engine&quot; to trace live steps.
             </p>
           </div>
         ) : (
@@ -81,7 +81,7 @@ export const ExecutionLogsPanel: React.FC<ExecutionLogsPanelProps> = ({ executio
               {log.nodeType === 'aiDecision' && (
                 <div className="space-y-1.5 mt-2">
                   <div className="text-[11px] text-slate-400 bg-slate-950 p-2 rounded border border-slate-800">
-                    <span className="text-slate-500">Prompt:</span> "{log.prompt}"
+                    <span className="text-slate-500">Prompt:</span> &quot;{log.prompt}&quot;
                   </div>
 
                   {log.decision && (

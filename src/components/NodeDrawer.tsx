@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { WorkflowNode, AIDecisionNodeData, ActionNodeData } from '@/lib/types';
 import { X, Bot, Zap, Trash2, Check } from 'lucide-react';
 
@@ -10,23 +10,26 @@ interface NodeDrawerProps {
 }
 
 export const NodeDrawer: React.FC<NodeDrawerProps> = ({ node, onClose, onUpdate, onDelete }) => {
-  const [label, setLabel] = useState('');
-  const [prompt, setPrompt] = useState('');
-  const [description, setDescription] = useState('');
-  const [message, setMessage] = useState('');
-  const [savedSuccess, setSavedSuccess] = useState(false);
-
-  useEffect(() => {
-    if (node) {
-      setLabel((node.data as { label?: string }).label || '');
-      setPrompt((node.data as AIDecisionNodeData).prompt || '');
-      setDescription((node.data as AIDecisionNodeData).description || '');
-      setMessage((node.data as ActionNodeData).message || '');
-      setSavedSuccess(false);
-    }
-  }, [node]);
-
   if (!node) return null;
+
+  return (
+    <NodeDrawerForm key={node.id} node={node} onClose={onClose} onUpdate={onUpdate} onDelete={onDelete} />
+  );
+};
+
+interface NodeDrawerFormProps {
+  node: WorkflowNode;
+  onClose: () => void;
+  onUpdate: (id: string, updatedData: Record<string, unknown>) => void;
+  onDelete: (id: string) => void;
+}
+
+const NodeDrawerForm: React.FC<NodeDrawerFormProps> = ({ node, onClose, onUpdate, onDelete }) => {
+  const [label, setLabel] = useState((node.data as { label?: string }).label || '');
+  const [prompt, setPrompt] = useState((node.data as AIDecisionNodeData).prompt || '');
+  const [description, setDescription] = useState((node.data as AIDecisionNodeData).description || '');
+  const [message, setMessage] = useState((node.data as ActionNodeData).message || '');
+  const [savedSuccess, setSavedSuccess] = useState(false);
 
   const handleSave = (e: React.FormEvent) => {
     e.preventDefault();

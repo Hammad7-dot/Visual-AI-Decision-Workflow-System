@@ -1,6 +1,6 @@
 import React, { useRef } from 'react';
 import { PRESET_WORKFLOWS } from '@/lib/presets';
-import { Play, Plus, Download, Upload, Trash2, Bot, Zap, Sparkles } from 'lucide-react';
+import { Play, Download, Upload, Trash2, Bot, Zap, Sparkles } from 'lucide-react';
 import { PresetWorkflow } from '@/lib/types';
 
 interface WorkflowToolbarProps {

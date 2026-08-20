@@ -87,6 +87,97 @@ Question/Prompt Criteria: "${promptText}"`,
   return { decision, reasoning };
 }
 
+// Executes a single node in isolation - the unit of work wrapped by an Inngest step.
+async function executeNodeStep(
+  node: WorkflowNode,
+  inputPayload: string,
+  stepIndex: number
+): Promise<ExecutionStepLog> {
+  const nodeData = node.data;
+
+  if (node.type === 'start') {
+    return {
+      stepId: `step-${stepIndex}`,
+      nodeId: node.id,
+      nodeLabel: (nodeData as { label?: string }).label || 'Start Event',
+      nodeType: 'start',
+      status: 'completed',
+      timestamp: new Date().toLocaleTimeString(),
+      durationMs: 15,
+      reasoning: `Workflow execution started with payload: "${inputPayload}"`,
+    };
+  }
+
+  if (node.type === 'aiDecision') {
+    const aiData = nodeData as AIDecisionNodeData;
+    const promptText = aiData.prompt || 'Is this valid?';
+    const startTime = Date.now();
+    const { decision, reasoning } = await evaluateDecisionWithLLM(promptText, inputPayload);
+    const durationMs = Date.now() - startTime;
+
+    return {
+      stepId: `step-${stepIndex}`,
+      nodeId: node.id,
+      nodeLabel: aiData.label || 'AI Decision Node',
+      nodeType: 'aiDecision',
+      status: 'completed',
+      timestamp: new Date().toLocaleTimeString(),
+      durationMs,
+      prompt: promptText,
+      decision,
+      reasoning,
+    };
+  }
+
+  if (node.type === 'action') {
+    const actionData = nodeData as ActionNodeData;
+    return {
+      stepId: `step-${stepIndex}`,
+      nodeId: node.id,
+      nodeLabel: actionData.label || 'Action Terminal',
+      nodeType: 'action',
+      status: 'completed',
+      timestamp: new Date().toLocaleTimeString(),
+      durationMs: 20,
+      reasoning: actionData.message || 'Action executed successfully.',
+    };
+  }
+
+  throw new Error(`Unknown node type: ${node.type}`);
+}
+
+// Pure edge-following logic - decides where the traversal goes next based on the
+// step's outcome. Kept outside of any Inngest step since it does no async work.
+function resolveNextNode(
+  node: WorkflowNode,
+  log: ExecutionStepLog,
+  nodes: WorkflowNode[],
+  edges: Edge[]
+): { nextNode: WorkflowNode | undefined; visitedEdgeId: string | undefined } {
+  if (node.type === 'start') {
+    const outEdge = edges.find((e: Edge) => e.source === node.id);
+    return {
+      nextNode: outEdge ? nodes.find((n) => n.id === outEdge.target) : undefined,
+      visitedEdgeId: outEdge?.id,
+    };
+  }
+
+  if (node.type === 'aiDecision') {
+    const handle = (log.decision || '').toLowerCase();
+    const matchingEdge = edges.find((e: Edge) => e.source === node.id && e.sourceHandle === handle);
+    return {
+      nextNode: matchingEdge ? nodes.find((n) => n.id === matchingEdge.target) : undefined,
+      visitedEdgeId: matchingEdge?.id,
+    };
+  }
+
+  return { nextNode: undefined, visitedEdgeId: undefined };
+}
+
+const MAX_STEPS = 20;
+
+// Synchronous traversal used by /api/execute for an immediate HTTP response.
+// Runs outside of an Inngest step context, so it calls executeNodeStep directly.
 export async function executeWorkflowCore(
   nodes: WorkflowNode[],
   edges: Edge[],
@@ -104,79 +195,17 @@ export async function executeWorkflowCore(
   let currentNode: WorkflowNode | undefined = startNode;
   let stepIndex = 0;
 
-  while (currentNode && stepIndex < 20) {
+  while (currentNode && stepIndex < MAX_STEPS) {
     stepIndex++;
     const nodeToExecute: WorkflowNode = currentNode;
     activeNodeIdSet.add(nodeToExecute.id);
-    const nodeData = nodeToExecute.data;
 
-    if (nodeToExecute.type === 'start') {
-      logs.push({
-        stepId: `step-${stepIndex}`,
-        nodeId: nodeToExecute.id,
-        nodeLabel: (nodeData as { label?: string }).label || 'Start Event',
-        nodeType: 'start',
-        status: 'completed',
-        timestamp: new Date().toLocaleTimeString(),
-        durationMs: 15,
-        reasoning: `Workflow execution started with payload: "${inputPayload}"`,
-      });
+    const log = await executeNodeStep(nodeToExecute, inputPayload, stepIndex);
+    logs.push(log);
 
-      const outEdge: Edge | undefined = edges.find((e: Edge) => e.source === nodeToExecute.id);
-      if (outEdge) {
-        visitedEdgeIds.push(outEdge.id);
-        currentNode = nodes.find((n) => n.id === outEdge.target);
-      } else {
-        currentNode = undefined;
-      }
-    } else if (nodeToExecute.type === 'aiDecision') {
-      const aiData = nodeData as AIDecisionNodeData;
-      const promptText = aiData.prompt || 'Is this valid?';
-      const startTime = Date.now();
-      const { decision, reasoning } = await evaluateDecisionWithLLM(promptText, inputPayload);
-      const durationMs = Date.now() - startTime;
-
-      logs.push({
-        stepId: `step-${stepIndex}`,
-        nodeId: nodeToExecute.id,
-        nodeLabel: aiData.label || 'AI Decision Node',
-        nodeType: 'aiDecision',
-        status: 'completed',
-        timestamp: new Date().toLocaleTimeString(),
-        durationMs,
-        prompt: promptText,
-        decision,
-        reasoning,
-      });
-
-      const handle = decision.toLowerCase();
-      const matchingEdge: Edge | undefined = edges.find(
-        (e: Edge) => e.source === nodeToExecute.id && e.sourceHandle === handle
-      );
-
-      if (matchingEdge) {
-        visitedEdgeIds.push(matchingEdge.id);
-        currentNode = nodes.find((n) => n.id === matchingEdge.target);
-      } else {
-        currentNode = undefined;
-      }
-    } else if (nodeToExecute.type === 'action') {
-      const actionData = nodeData as ActionNodeData;
-      logs.push({
-        stepId: `step-${stepIndex}`,
-        nodeId: nodeToExecute.id,
-        nodeLabel: actionData.label || 'Action Terminal',
-        nodeType: 'action',
-        status: 'completed',
-        timestamp: new Date().toLocaleTimeString(),
-        durationMs: 20,
-        reasoning: actionData.message || 'Action executed successfully.',
-      });
-
-      currentNode = undefined;
-    } else {
-      currentNode = undefined;
-    }
+    const { nextNode, visitedEdgeId } = resolveNextNode(nodeToExecute, log, nodes, edges);
+    if (visitedEdgeId) visitedEdgeIds.push(visitedEdgeId);
+    currentNode = nextNode;
   }
 
   return {
@@ -197,8 +226,40 @@ export const runAiWorkflow = inngest.createFunction(
   async ({ event, step }: { event: { data: { nodes: WorkflowNode[]; edges: Edge[]; inputPayload: string } }; step: { run: <T>(name: string, fn: () => Promise<T>) => Promise<T> } }) => {
     const { nodes, edges, inputPayload } = event.data;
 
-    return await step.run('execute-workflow-steps', async () => {
-      return await executeWorkflowCore(nodes, edges, inputPayload);
-    });
+    const logs: ExecutionStepLog[] = [];
+    const visitedEdgeIds: string[] = [];
+    const activeNodeIdSet = new Set<string>();
+
+    const startNode = nodes.find((n) => n.type === 'start');
+    if (!startNode) {
+      throw new Error('Workflow has no Start node!');
+    }
+
+    let currentNode: WorkflowNode | undefined = startNode;
+    let stepIndex = 0;
+
+    while (currentNode && stepIndex < MAX_STEPS) {
+      stepIndex++;
+      const nodeToExecute: WorkflowNode = currentNode;
+      activeNodeIdSet.add(nodeToExecute.id);
+
+      // Each node is its own durable, independently retried/memoized Inngest step.
+      const log = await step.run(`execute-node-${nodeToExecute.id}`, () =>
+        executeNodeStep(nodeToExecute, inputPayload, stepIndex)
+      );
+      logs.push(log);
+
+      const { nextNode, visitedEdgeId } = resolveNextNode(nodeToExecute, log, nodes, edges);
+      if (visitedEdgeId) visitedEdgeIds.push(visitedEdgeId);
+      currentNode = nextNode;
+    }
+
+    return {
+      status: 'completed' as const,
+      logs,
+      visitedEdgeIds,
+      activeNodeIds: Array.from(activeNodeIdSet),
+      inputPayload,
+    };
   }
 );

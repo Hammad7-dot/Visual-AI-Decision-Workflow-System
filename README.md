@@ -11,6 +11,7 @@ An interactive visual workflow builder and execution engine where each step repr
 - 🟢 **Visual Execution State & Animated Edges**: Live step-by-step path highlighting, glowing active nodes, and animated edge flows.
 - 📜 **Execution Logs & Real-time Telemetry**: Full step history, reasoning breakdown, decision timings, and payload output.
 - 📁 **JSON Import / Export & Starter Presets**: Save and load workflow configurations or choose pre-built templates (e.g. Support Ticket Router, Lead Classifier).
+- 🧩 **shadcn/ui**: Toolbar and node-configuration drawer controls are built on shadcn's Button/Input/Textarea/Select/Label primitives.
 
 ---
 
@@ -33,6 +34,10 @@ Create or update `.env.local` in the project root:
 
 ```env
 OPENAI_API_KEY=sk-...
+
+# Required for local development so the Inngest SDK talks to the local Dev
+# Server (below) instead of expecting cloud signing/event keys.
+INNGEST_DEV=1
 ```
 *(If `OPENAI_API_KEY` is not provided, the application automatically uses an intelligent simulated keyword evaluator so you can test complete workflows immediately).*
 
@@ -64,13 +69,12 @@ This opens the Inngest dashboard at [http://localhost:8288](http://localhost:828
 src/
 ├── app/
 │   ├── api/
-│   │   ├── inngest/route.ts      # Inngest API route handler
-│   │   ├── workflow/
-│   │   │   ├── execute/route.ts   # Trigger workflow execution endpoint
-│   │   │   └── status/route.ts    # Fetch execution status & telemetry
+│   │   ├── inngest/route.ts      # Inngest API route handler (serves registered functions)
+│   │   └── execute/route.ts      # Synchronous execution endpoint used by the UI's Run button
 │   ├── layout.tsx
 │   └── page.tsx                  # Main Workflow Canvas Page
 ├── components/
+│   ├── ui/                       # shadcn/ui primitives (Button, Input, Textarea, Select, Badge, Label)
 │   ├── FlowEditor.tsx            # Main React Flow visual canvas
 │   ├── NodeDrawer.tsx            # Node prompt configuration drawer
 │   ├── ExecutionLogsPanel.tsx    # Live step-by-step execution log viewer
@@ -82,6 +86,6 @@ src/
 ├── lib/
 │   ├── inngest/
 │   │   ├── client.ts             # Inngest client configuration
-│   │   └── functions.ts          # Inngest durable workflow execution steps
+│   │   └── functions.ts          # Inngest function - each node runs as its own step.run()
 │   ├── types.ts                  # TypeScript interfaces for nodes, edges, logs
 │   └── presets.ts                # Built-in workflow templates

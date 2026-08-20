@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
 import { WorkflowNode, AIDecisionNodeData, ActionNodeData } from '@/lib/types';
 import { X, Bot, Zap, Trash2, Check } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 
 interface NodeDrawerProps {
   node: WorkflowNode | null;
@@ -58,25 +62,28 @@ const NodeDrawerForm: React.FC<NodeDrawerFormProps> = ({ node, onClose, onUpdate
             Configure {node.type === 'aiDecision' ? 'AI Decision' : node.type === 'start' ? 'Start' : 'Action'} Node
           </h2>
         </div>
-        <button
+        <Button
+          type="button"
           onClick={onClose}
-          className="p-1 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition"
+          variant="ghost"
+          size="icon"
+          className="text-slate-400 hover:text-slate-200 hover:bg-slate-800"
         >
           <X size={18} />
-        </button>
+        </Button>
       </div>
 
       {/* Form Content */}
       <form onSubmit={handleSave} className="flex-1 p-5 space-y-4 overflow-y-auto">
         <div>
-          <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
+          <Label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
             Node Title / Label
-          </label>
-          <input
+          </Label>
+          <Input
             type="text"
             value={label}
             onChange={(e) => setLabel(e.target.value)}
-            className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 focus:outline-none focus:border-purple-500"
+            className="w-full bg-slate-950 border-slate-800 text-sm text-slate-100 focus-visible:border-purple-500 focus-visible:ring-purple-500/30"
             placeholder="e.g. Is Support Request?"
             required
           />
@@ -85,14 +92,14 @@ const NodeDrawerForm: React.FC<NodeDrawerFormProps> = ({ node, onClose, onUpdate
         {node.type === 'aiDecision' && (
           <>
             <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
+              <Label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
                 AI Prompt (Decision Criteria)
-              </label>
-              <textarea
+              </Label>
+              <Textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
                 rows={4}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 font-mono focus:outline-none focus:border-purple-500 leading-relaxed"
+                className="w-full bg-slate-950 border-slate-800 text-sm text-slate-100 font-mono focus-visible:border-purple-500 focus-visible:ring-purple-500/30 leading-relaxed"
                 placeholder="Ask a question that can be answered explicitly with YES or NO..."
                 required
               />
@@ -102,14 +109,14 @@ const NodeDrawerForm: React.FC<NodeDrawerFormProps> = ({ node, onClose, onUpdate
             </div>
 
             <div>
-              <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
+              <Label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
                 Description / Notes
-              </label>
-              <input
+              </Label>
+              <Input
                 type="text"
                 value={description}
                 onChange={(e) => setDescription(e.target.value)}
-                className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-xs text-slate-300 focus:outline-none focus:border-purple-500"
+                className="w-full bg-slate-950 border-slate-800 text-xs text-slate-300 focus-visible:border-purple-500 focus-visible:ring-purple-500/30"
                 placeholder="Optional description of this step..."
               />
             </div>
@@ -118,14 +125,14 @@ const NodeDrawerForm: React.FC<NodeDrawerFormProps> = ({ node, onClose, onUpdate
 
         {node.type === 'action' && (
           <div>
-            <label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
+            <Label className="block text-xs font-semibold text-slate-300 uppercase tracking-wider mb-1">
               Action Outcome Payload / Message
-            </label>
-            <textarea
+            </Label>
+            <Textarea
               value={message}
               onChange={(e) => setMessage(e.target.value)}
               rows={3}
-              className="w-full bg-slate-950 border border-slate-800 rounded-lg px-3 py-2 text-sm text-slate-100 font-mono focus:outline-none focus:border-amber-500"
+              className="w-full bg-slate-950 border-slate-800 text-sm text-slate-100 font-mono focus-visible:border-amber-500 focus-visible:ring-amber-500/30"
               placeholder="e.g. Escalate ticket to PagerDuty engineering on-call."
               required
             />
@@ -133,22 +140,23 @@ const NodeDrawerForm: React.FC<NodeDrawerFormProps> = ({ node, onClose, onUpdate
         )}
 
         <div className="pt-4 border-t border-slate-800 flex items-center justify-between">
-          <button
+          <Button
             type="button"
             onClick={() => onDelete(node.id)}
-            className="flex items-center space-x-1.5 text-xs text-rose-400 hover:text-rose-300 bg-rose-950/30 hover:bg-rose-950/60 px-3 py-2 rounded-lg border border-rose-900/50 transition"
+            variant="outline"
+            className="text-xs text-rose-400 hover:text-rose-300 bg-rose-950/30 hover:bg-rose-950/60 border-rose-900/50"
           >
             <Trash2 size={14} />
             <span>Delete Node</span>
-          </button>
+          </Button>
 
-          <button
+          <Button
             type="submit"
-            className="flex items-center space-x-1.5 text-xs font-semibold text-white bg-purple-600 hover:bg-purple-500 px-4 py-2 rounded-lg shadow-lg shadow-purple-600/30 transition"
+            className="text-xs font-semibold text-white bg-purple-600 hover:bg-purple-500 shadow-lg shadow-purple-600/30"
           >
             {savedSuccess ? <Check size={14} className="text-emerald-300" /> : null}
             <span>{savedSuccess ? 'Saved!' : 'Save Node'}</span>
-          </button>
+          </Button>
         </div>
       </form>
     </div>

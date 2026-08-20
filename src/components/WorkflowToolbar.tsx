@@ -2,6 +2,15 @@ import React, { useRef } from 'react';
 import { PRESET_WORKFLOWS } from '@/lib/presets';
 import { Play, Download, Upload, Trash2, Bot, Zap, Sparkles } from 'lucide-react';
 import { PresetWorkflow } from '@/lib/types';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 
 interface WorkflowToolbarProps {
   onExecute: () => void;
@@ -60,58 +69,66 @@ export const WorkflowToolbar: React.FC<WorkflowToolbarProps> = ({
 
         {/* Preset Selector */}
         <div className="h-6 w-[1px] bg-slate-800 mx-1 hidden md:block" />
-        <select
-          onChange={(e) => {
-            const found = PRESET_WORKFLOWS.find((p) => p.id === e.target.value);
+        <Select
+          defaultValue="support-router"
+          onValueChange={(value) => {
+            const found = PRESET_WORKFLOWS.find((p) => p.id === value);
             if (found) onSelectPreset(found);
           }}
-          className="bg-slate-950 text-xs text-slate-300 border border-slate-800 rounded-lg px-2.5 py-1.5 focus:outline-none focus:border-purple-500"
-          defaultValue="support-router"
         >
-          <option value="" disabled>
-            Select Preset Template...
-          </option>
-          {PRESET_WORKFLOWS.map((preset) => (
-            <option key={preset.id} value={preset.id}>
-              Preset: {preset.name}
-            </option>
-          ))}
-        </select>
+          <SelectTrigger className="bg-slate-950 text-xs text-slate-300 border-slate-800 focus-visible:border-purple-500 focus-visible:ring-purple-500/30">
+            <SelectValue placeholder="Select Preset Template...">
+              {(value: string | null) => {
+                const preset = PRESET_WORKFLOWS.find((p) => p.id === value);
+                return preset ? `Preset: ${preset.name}` : 'Select Preset Template...';
+              }}
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent className="bg-slate-950 border-slate-800 text-slate-300">
+            {PRESET_WORKFLOWS.map((preset) => (
+              <SelectItem key={preset.id} value={preset.id} className="text-xs focus:bg-slate-800 focus:text-slate-100">
+                Preset: {preset.name}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
       </div>
 
       {/* Node creation controls */}
       <div className="flex items-center space-x-2">
-        <button
+        <Button
           onClick={onAddAIDecisionNode}
-          className="flex items-center space-x-1.5 bg-slate-800 hover:bg-slate-700 text-purple-300 text-xs font-semibold px-3 py-1.5 rounded-lg border border-purple-500/30 transition"
+          variant="outline"
+          className="bg-slate-800 hover:bg-slate-700 text-purple-300 text-xs font-semibold border-purple-500/30"
         >
           <Bot size={15} />
           <span>+ AI Decision</span>
-        </button>
+        </Button>
 
-        <button
+        <Button
           onClick={onAddActionNode}
-          className="flex items-center space-x-1.5 bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-semibold px-3 py-1.5 rounded-lg border border-amber-500/30 transition"
+          variant="outline"
+          className="bg-slate-800 hover:bg-slate-700 text-amber-300 text-xs font-semibold border-amber-500/30"
         >
           <Zap size={15} />
           <span>+ Action Node</span>
-        </button>
+        </Button>
       </div>
 
       {/* Input payload & Execute Trigger */}
       <div className="flex items-center space-x-2 flex-1 max-w-xl">
-        <input
+        <Input
           type="text"
           value={inputPayload}
           onChange={(e) => setInputPayload(e.target.value)}
           placeholder="Input Payload (e.g., Customer inquiry or prompt)..."
-          className="flex-1 bg-slate-950 border border-slate-800 rounded-lg px-3 py-1.5 text-xs text-slate-200 focus:outline-none focus:border-purple-500 font-mono"
+          className="flex-1 bg-slate-950 border-slate-800 text-xs text-slate-200 focus-visible:border-purple-500 focus-visible:ring-purple-500/30 font-mono"
         />
 
-        <button
+        <Button
           onClick={onExecute}
           disabled={isExecuting}
-          className={`flex items-center space-x-2 px-4 py-1.5 rounded-lg font-bold text-xs shadow-lg transition ${
+          className={`font-bold text-xs shadow-lg ${
             isExecuting
               ? 'bg-purple-800 text-purple-300 cursor-not-allowed opacity-75'
               : 'bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white shadow-purple-600/30'
@@ -119,28 +136,30 @@ export const WorkflowToolbar: React.FC<WorkflowToolbarProps> = ({
         >
           <Play size={14} className={isExecuting ? 'animate-spin' : 'fill-current'} />
           <span>{isExecuting ? 'Executing...' : 'Run Inngest Engine'}</span>
-        </button>
+        </Button>
       </div>
 
       {/* Utilities: Export / Import / Clear */}
       <div className="flex items-center space-x-2">
-        <button
+        <Button
           onClick={onExport}
           title="Export Workflow JSON"
-          className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 text-xs flex items-center space-x-1"
+          variant="outline"
+          className="bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700 text-xs"
         >
           <Download size={14} />
           <span className="hidden lg:inline">Export</span>
-        </button>
+        </Button>
 
-        <button
+        <Button
           onClick={() => fileInputRef.current?.click()}
           title="Import Workflow JSON"
-          className="p-1.5 bg-slate-800 hover:bg-slate-700 text-slate-300 rounded-lg border border-slate-700 text-xs flex items-center space-x-1"
+          variant="outline"
+          className="bg-slate-800 hover:bg-slate-700 text-slate-300 border-slate-700 text-xs"
         >
           <Upload size={14} />
           <span className="hidden lg:inline">Import</span>
-        </button>
+        </Button>
         <input
           type="file"
           ref={fileInputRef}
@@ -149,13 +168,15 @@ export const WorkflowToolbar: React.FC<WorkflowToolbarProps> = ({
           className="hidden"
         />
 
-        <button
+        <Button
           onClick={onClear}
           title="Clear Canvas"
-          className="p-1.5 bg-slate-800 hover:bg-rose-950/60 text-slate-400 hover:text-rose-400 rounded-lg border border-slate-700 transition"
+          variant="outline"
+          size="icon"
+          className="bg-slate-800 hover:bg-rose-950/60 text-slate-400 hover:text-rose-400 border-slate-700"
         >
           <Trash2 size={14} />
-        </button>
+        </Button>
       </div>
     </div>
   );

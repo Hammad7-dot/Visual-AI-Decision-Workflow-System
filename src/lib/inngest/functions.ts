@@ -164,7 +164,11 @@ function resolveNextNode(
 
   if (node.type === 'aiDecision') {
     const handle = (log.decision || '').toLowerCase();
-    const matchingEdge = edges.find((e: Edge) => e.source === node.id && e.sourceHandle === handle);
+    const outEdges = edges.filter((e: Edge) => e.source === node.id);
+    // Fall back to the single outgoing edge when sourceHandle isn't set (e.g. imported workflows).
+    const matchingEdge =
+      outEdges.find((e: Edge) => e.sourceHandle === handle) ??
+      (outEdges.length === 1 ? outEdges[0] : undefined);
     return {
       nextNode: matchingEdge ? nodes.find((n) => n.id === matchingEdge.target) : undefined,
       visitedEdgeId: matchingEdge?.id,
@@ -244,7 +248,7 @@ export const runAiWorkflow = inngest.createFunction(
       activeNodeIdSet.add(nodeToExecute.id);
 
       // Each node is its own durable, independently retried/memoized Inngest step.
-      const log = await step.run(`execute-node-${nodeToExecute.id}`, () =>
+      const log = await step.run(`execute-node-${nodeToExecute.id}-${stepIndex}`, () =>
         executeNodeStep(nodeToExecute, inputPayload, stepIndex)
       );
       logs.push(log);

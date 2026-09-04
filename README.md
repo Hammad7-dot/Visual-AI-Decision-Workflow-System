@@ -1,6 +1,6 @@
 # Visual AI Decision Workflow System
 
-An interactive visual workflow builder and execution engine where each step represents an AI decision returning `YES` or `NO`. The workflow execution runs through **Inngest** durable execution while the frontend visualizes the flow in real-time using **React Flow**.
+An interactive visual workflow builder and execution engine with AI decisions returning `YES` or `NO`. The UI runs workflows synchronously and replays their results using **React Flow**. Separately submitted background jobs support **Inngest** durable execution.
 
 ## Features
 
@@ -18,7 +18,7 @@ An interactive visual workflow builder and execution engine where each step repr
 ## Getting Started
 
 ### 1. Prerequisites
-- Node.js 18+
+- Node.js 20.9+
 - npm / pnpm / yarn
 
 ### 2. Installation
@@ -51,7 +51,11 @@ npm run dev
 
 The application will be running at [http://localhost:3000](http://localhost:3000).
 
-### 5. Running the Inngest Dev Server
+### 5. Running the Inngest Dev Server (optional background execution)
+
+The UI Run button executes once through `/api/execute` and returns the result directly. It does not enqueue an Inngest job. To use durable background execution, submit a `workflow/run.requested` event with `nodes`, `edges`, and `inputPayload` to Inngest separately.
+
+Without an OpenAI key, the demo evaluator uses limited rules, including enterprise size (over 50 employees) and budget (over $10,000). It is not a general-purpose prompt evaluator.
 
 In a separate terminal window, launch the Inngest CLI dev server:
 

@@ -1,28 +1,40 @@
 import { NextResponse } from 'next/server';
-import { inngest } from '@/lib/inngest/client';
 import { executeWorkflowCore } from '@/lib/inngest/functions';
+import { validateWorkflowRequest } from '@/lib/validate-workflow';
 
 export async function POST(req: Request) {
+  let body: unknown;
   try {
-    const body = await req.json();
-    const { nodes, edges, inputPayload } = body;
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: 'Invalid JSON body' }, { status: 400 });
+  }
 
-    if (!nodes || !edges) {
+  const validationError = validateWorkflowRequest(body);
+  if (validationError) {
+    return NextResponse.json({ error: validationError }, { status: 400 });
+  }
+
+  try {
+    const { nodes, edges, inputPayload } = (body ?? {}) as {
+      nodes?: unknown;
+      edges?: unknown;
+      inputPayload?: unknown;
+    };
+
+    if (!Array.isArray(nodes) || !Array.isArray(edges) || nodes.length === 0) {
       return NextResponse.json({ error: 'Missing nodes or edges' }, { status: 400 });
     }
-
-    // Trigger Inngest event for async tracking / dashboard execution
-    try {
-      await inngest.send({
-        name: 'workflow/run.requested',
-        data: { nodes, edges, inputPayload },
-      });
-    } catch (inngestErr) {
-      console.warn('Inngest event send notice:', inngestErr);
+    if (!nodes.some((n) => (n as { type?: string })?.type === 'start')) {
+      return NextResponse.json({ error: 'Workflow has no Start node' }, { status: 400 });
     }
 
-    // Execute workflow using single source of truth engine logic
-    const result = await executeWorkflowCore(nodes, edges, inputPayload || '');
+    // Run once here. Background callers can submit workflow/run.requested separately.
+    const result = await executeWorkflowCore(
+      nodes as Parameters<typeof executeWorkflowCore>[0],
+      edges as Parameters<typeof executeWorkflowCore>[1],
+      typeof inputPayload === 'string' ? inputPayload : ''
+    );
 
     return NextResponse.json(result);
   } catch (error: unknown) {

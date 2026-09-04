@@ -57,7 +57,22 @@ Question/Prompt Criteria: "${promptText}"`,
   let decision: 'YES' | 'NO' = 'NO';
   let reasoning = '';
 
-  if (lowerPrompt.includes('support') || lowerPrompt.includes('help') || lowerPrompt.includes('issue')) {
+  if (lowerPrompt.includes('budget')) {
+    const amount = lowerPayload.match(/\$\s*([\d,]+(?:\.\d+)?)\s*(k|m|thousand|million)?\b/);
+    const budget = amount
+      ? Number(amount[1].replaceAll(',', '')) * (['m', 'million'].includes(amount[2]) ? 1_000_000 : ['k', 'thousand'].includes(amount[2]) ? 1_000 : 1)
+      : undefined;
+    const matched = budget !== undefined && budget > 10_000;
+    decision = matched ? 'YES' : 'NO';
+    reasoning = `Demo heuristic: ${matched ? 'budget exceeds $10,000' : 'no budget above $10,000 detected'}.`;
+  } else if (lowerPrompt.includes('employees') || lowerPrompt.includes('team size')) {
+    const count = lowerPayload.match(/\b([\d,]+)\s+employees\b/);
+    const matched = count
+      ? Number(count[1].replaceAll(',', '')) > 50
+      : /\b(enterprise|mid-market)\b/.test(lowerPayload);
+    decision = matched ? 'YES' : 'NO';
+    reasoning = `Demo heuristic: ${matched ? 'enterprise scale detected' : 'enterprise scale not established'}.`;
+  } else if (lowerPrompt.includes('support') || lowerPrompt.includes('help') || lowerPrompt.includes('issue')) {
     const matched = supportKeywords.some((k) => lowerPayload.includes(k));
     decision = matched ? 'YES' : 'NO';
     reasoning = matched
@@ -168,7 +183,7 @@ function resolveNextNode(
     // Fall back to the single outgoing edge when sourceHandle isn't set (e.g. imported workflows).
     const matchingEdge =
       outEdges.find((e: Edge) => e.sourceHandle === handle) ??
-      (outEdges.length === 1 ? outEdges[0] : undefined);
+      (outEdges.length === 1 && !outEdges[0].sourceHandle ? outEdges[0] : undefined);
     return {
       nextNode: matchingEdge ? nodes.find((n) => n.id === matchingEdge.target) : undefined,
       visitedEdgeId: matchingEdge?.id,
@@ -210,6 +225,10 @@ export async function executeWorkflowCore(
     const { nextNode, visitedEdgeId } = resolveNextNode(nodeToExecute, log, nodes, edges);
     if (visitedEdgeId) visitedEdgeIds.push(visitedEdgeId);
     currentNode = nextNode;
+  }
+
+  if (currentNode) {
+    throw new Error(`Workflow exceeded the ${MAX_STEPS}-step limit; check for cycles or shorten the workflow.`);
   }
 
   return {
@@ -256,6 +275,10 @@ export const runAiWorkflow = inngest.createFunction(
       const { nextNode, visitedEdgeId } = resolveNextNode(nodeToExecute, log, nodes, edges);
       if (visitedEdgeId) visitedEdgeIds.push(visitedEdgeId);
       currentNode = nextNode;
+    }
+
+    if (currentNode) {
+      throw new Error(`Workflow exceeded the ${MAX_STEPS}-step limit; check for cycles or shorten the workflow.`);
     }
 
     return {

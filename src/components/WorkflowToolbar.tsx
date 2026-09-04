@@ -76,7 +76,10 @@ export const WorkflowToolbar: React.FC<WorkflowToolbarProps> = ({
             if (found) onSelectPreset(found);
           }}
         >
-          <SelectTrigger className="bg-slate-950 text-xs text-slate-300 border-slate-800 focus-visible:border-purple-500 focus-visible:ring-purple-500/30">
+          <SelectTrigger
+            aria-label="Select preset workflow template"
+            className="bg-slate-950 text-xs text-slate-300 border-slate-800 focus-visible:border-purple-500 focus-visible:ring-purple-500/30"
+          >
             <SelectValue placeholder="Select Preset Template...">
               {(value: string | null) => {
                 const preset = PRESET_WORKFLOWS.find((p) => p.id === value);
@@ -135,7 +138,7 @@ export const WorkflowToolbar: React.FC<WorkflowToolbarProps> = ({
           }`}
         >
           <Play size={14} className={isExecuting ? 'animate-spin' : 'fill-current'} />
-          <span>{isExecuting ? 'Executing...' : 'Run Inngest Engine'}</span>
+          <span>{isExecuting ? 'Executing...' : 'Run Workflow'}</span>
         </Button>
       </div>
 

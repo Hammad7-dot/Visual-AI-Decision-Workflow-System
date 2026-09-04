@@ -1,6 +1,14 @@
 # Visual AI Decision Workflow System
 
-An interactive visual workflow builder and execution engine with AI decisions returning `YES` or `NO`. The UI runs workflows synchronously and replays their results using **React Flow**. Separately submitted background jobs support **Inngest** durable execution.
+Build visual AI workflows with YES/NO branching, OpenAI decisions, execution logs, and optional Inngest background jobs.
+
+Built with **Next.js**, **React Flow**, and **TypeScript**. The UI runs workflows synchronously and replays their results; separately submitted background jobs support **Inngest** durable execution.
+
+## Live Workflow
+
+![Completed customer support workflow showing YES/NO branches and execution logs](docs/images/live-workflow.png)
+
+Captured from the running app using the demo evaluator. The customer request follows two YES decisions to the engineering escalation outcome. Nodes are spaced out for readability; action outputs are demonstration messages, not external notifications.
 
 ## Features
 
